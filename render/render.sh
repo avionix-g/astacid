@@ -1,19 +1,17 @@
 #! /usr/bin/env zsh
 
-input="sample.txt"
-target="AstacidMono"
+font1=$1
+font2=$2
+sample_text=$3
 size=100
-declare -a bases=("DejaVuSansMono", "DejaVuSansMono-Bront")
 
-for base in "${bases[@]}"
-do
-   echo "Rendering $input using $base..."
+echo "Rendering $sample_text using $font1..."
 
-   convert +antialias -density 228 -fill red -font $base.ttf -pointsize $size label:@$input $base.webp
-   convert +antialias -density 228 -fill green -font $target.ttf -pointsize $size label:@$input $target.webp
-   convert $target.webp $base.webp -compose multiply -composite $base-comparison-large.webp
-   convert -resize 25% $base-comparison-large.webp $base-comparison.webp
-   rm $base.webp $target.webp $base-comparison-large.webp
+convert +antialias -density 228 -fill red -font $font2 -pointsize $size label:@$sample_text $font2.webp
+convert +antialias -density 228 -fill green -font $font1 -pointsize $size label:@$sample_text $font1.webp
+convert $font2.webp $font1.webp -compose multiply -composite $font2-comparison-large.webp
+convert -resize 50% $font2-comparison-large.webp $font2-comparison.webp
 
-   echo "Rendered $input to $base-comparison.webp"
-done
+rm $font2.webp $font1.webp $font2-comparison-large.webp
+
+echo "Rendered $sample_text to $font2-comparison.webp"
