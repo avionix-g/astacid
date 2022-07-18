@@ -13,6 +13,9 @@ Changes made to DejaVu Sans Mono - Bront include:
 
 Astacid is [patched with Nerd Font symbols](https://github.com/betaboon/nerd-fonts-patcher).
 
+## Comparison to DejaVu Sans Mono
+![DejaVu Sans Mono delta](./DejaVuSansMono-comparison.webp "DejaVu Sans Mono delta")
+
 ## Comparison to DejaVu Sans Mono - Bront
 ![DejaVu Sans Mono - Bront delta](./DejaVuSansMono-Bront-comparison.webp "DejaVu Sans Mono - Bront delta")
 
