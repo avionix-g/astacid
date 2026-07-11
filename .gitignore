@@ -1,7 +1,7 @@
-*.ttf
-!/dist/*.ttf
-
 # generated build artifacts (dist/ is the committed, reproducible deliverable)
 /build/
 /result
+
+# caches
 __pycache__
+.direnv
