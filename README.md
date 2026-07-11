@@ -1,14 +1,12 @@
 # Astacid Mono
 
-A DejaVu-based monospace font for programming: DejaVu Sans Mono 2.37 with 16
-hand-tuned glyphs, four styles, patched with the full
-[Nerd Font](https://github.com/ryanoasis/nerd-fonts) set.
+A DejaVu-based monospace font for programming. DejaVu Sans Mono with hand-tuned glyphs, four styles, patched with the complete [Nerd Font](https://github.com/ryanoasis/nerd-fonts) set.
 
-![Astacid Mono — four styles](assets/sample.png)
+![Astacid Mono styles](assets/sample.png)
 
 ## Changed glyphs
 
-![Astacid vs DejaVu](assets/diff.png)
+![Astacid vs. DejaVu Sans Mono](assets/diff.png)
 
 | glyph | change |
 |-------|--------|
@@ -21,25 +19,25 @@ hand-tuned glyphs, four styles, patched with the full
 
 ## Build
 
-Bit-for-bit reproducible via Nix:
+Fully reproducible builds via Nix:
 
 ```sh
-nix build              # → result/share/fonts/truetype/*.ttf
-nix develop            # dev shell: fontforge, nerd-font-patcher, fonttools
-python build.py        # → dist/
-python build.py render # regenerate the assets/ previews
+nix build                  # -> result/share/fonts/truetype/*.ttf
+nix develop                # enter dev shell
+ruff format && ruff check  # format & lint Python code
+python build.py            # -> dist/
+python build.py render     # regenerate the assets/ previews
 ```
 
-Prebuilt faces are committed in [`dist/`](dist) — `nix build` reproduces them
-byte-for-byte. Glyph sources are editable UFO under [`sources/`](sources); the
-merge, Nerd patch, and metadata all live in a single [`build.py`](build.py).
+Prebuilt faces are committed in [`dist/`](dist) — `nix build` reproduces them byte-for-byte. Glyph sources are editable UFO under [`sources/`](sources); the merge, Nerd patch, and metadata all live in a single [`build.py`](build.py).
 
 ## Credits & license
 
-Astacid borrows from [DejaVu](https://dejavu-fonts.github.io/) (a Bitstream Vera
-derivative, © 2003 Bitstream, Inc.),
-[DejaVu Sans Mono Bront](https://github.com/chrismwendt/bront),
-[Ubuntu Mono](https://fonts.google.com/specimen/Ubuntu+Mono),
-[Hack](https://github.com/source-foundry/Hack), and
-[Nerd Fonts](https://github.com/ryanoasis/nerd-fonts). Astacid's own work is MIT;
-bundled glyphs retain their upstream licenses. See [LICENSE](LICENSE).
+Astacid borrows glyphs from:
+- [DejaVu](https://dejavu-fonts.github.io/) (a Bitstream Vera derivative, © 2003 Bitstream, Inc.),
+- [DejaVu Sans Mono Bront](https://github.com/chrismwendt/bront),
+- [Ubuntu Mono](https://fonts.google.com/specimen/Ubuntu+Mono),
+- [Hack](https://github.com/source-foundry/Hack), and
+- [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts).
+
+Astacid's own work is MIT; bundled glyphs retain their upstream licenses. See [LICENSE](LICENSE).

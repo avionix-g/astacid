@@ -14,10 +14,7 @@
           packages = [
             pkgs.fontforge            # glyph editing + build.py scripting engine
             pkgs.nerd-font-patcher    # binary: `nerd-font-patcher` (bundles the Nerd Font glyph set)
-            # fontbakery (QA) — TEMPORARILY OMITTED. Broken in this pinned nixpkgs rev
-            # (0bb7ec54, 2026-07-08): py3.14 build pulls incompatible `fs`; py3.12 build
-            # fails on `shaperglot` (missing pkg_resources). Not needed until Phase 4 —
-            # revisit then (bump pin, add a second good-rev input, or run via `uvx fontbakery`).
+            pkgs.ruff                 # Python linter/formatter for build.py
             pkgs.woff2                # woff2_compress for optional web artifact
             (pkgs.python3.withPackages (ps: [
               ps.fonttools            # merge + name-table surgery
@@ -27,18 +24,16 @@
             ]))
           ];
 
-          # Pristine DejaVu Sans Mono 2.37 base, provided by the pinned nixpkgs
-          # input (relock with `nix flake update`). The build patches the Astacid
-          # overrides onto these 4 faces; nothing is vendored into the repo.
+          # Pristine DejaVu Sans Mono base
           DEJAVU_DIR = "${pkgs.dejavu_fonts}/share/fonts/truetype";
 
           shellHook = ''
-            echo "astacid dev shell:"
+            echo "Astacid dev shell:"
             echo "  fontforge         $(fontforge --version 2>&1 | grep -oiE 'fontforge [0-9]+' | head -1)"
             echo "  nerd-font-patcher $(nerd-font-patcher --version 2>/dev/null | head -1)"
             echo "  fonttools         $(python3 -c 'import fontTools; print(fontTools.version)')"
+            echo "  ruff              $(ruff --version)"
             echo "  dejavu base       ${pkgs.dejavu_fonts.version}  ($DEJAVU_DIR)"
-            echo "  (fontbakery omitted — broken in pinned rev; see flake.nix)"
             export SOURCE_DATE_EPOCH=315532800   # deterministic font timestamps (1980-01-01)
           '';
         };
