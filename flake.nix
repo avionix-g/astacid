@@ -25,11 +25,17 @@
             ]))
           ];
 
+          # Pristine DejaVu Sans Mono 2.37 base, provided by the pinned nixpkgs
+          # input (relock with `nix flake update`). The build patches the Astacid
+          # overrides onto these 4 faces; nothing is vendored into the repo.
+          DEJAVU_DIR = "${pkgs.dejavu_fonts}/share/fonts/truetype";
+
           shellHook = ''
             echo "astacid dev shell:"
             echo "  fontforge         $(fontforge --version 2>&1 | grep -oiE 'fontforge [0-9]+' | head -1)"
             echo "  nerd-font-patcher $(nerd-font-patcher --version 2>/dev/null | head -1)"
             echo "  fonttools         $(python3 -c 'import fontTools; print(fontTools.version)')"
+            echo "  dejavu base       ${pkgs.dejavu_fonts.version}  ($DEJAVU_DIR)"
             echo "  (fontbakery omitted — broken in pinned rev; see flake.nix)"
             export SOURCE_DATE_EPOCH=315532800   # deterministic font timestamps (1980-01-01)
           '';
@@ -44,6 +50,7 @@
       #     src = self;
       #     nativeBuildInputs = [ pkgs.fontforge pkgs.nerd-font-patcher
       #       (pkgs.python3.withPackages (ps: [ ps.fonttools ps.brotli ])) ];
+      #     DEJAVU_DIR = "${pkgs.dejavu_fonts}/share/fonts/truetype";
       #     SOURCE_DATE_EPOCH = 315532800;
       #     buildPhase = "bash build.sh";
       #     installPhase = ''
