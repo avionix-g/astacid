@@ -1,7 +1,6 @@
 *.ttf
-!AstacidMono.ttf
+!/dist/*.ttf
 
-# generated build artifacts
+# generated build artifacts (dist/ is the committed, reproducible deliverable)
 /build/
-/dist/
 /result

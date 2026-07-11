@@ -2,7 +2,7 @@
 """Astacid Mono build pipeline — one script, three stages, pure python3.
 
     python3 build.py            # build all four faces into dist/
-    python3 build.py render     # regenerate docs/ preview images (needs Pillow)
+    python3 build.py render     # regenerate assets/ preview images (needs Pillow)
 
 The font build patches 16 hand-edited override glyphs onto pristine DejaVu Sans
 Mono 2.37 faces, adds the Nerd Font glyph set, and writes an authoritative name
@@ -200,11 +200,11 @@ ACCENT = (243, 139, 168)   # DejaVu ghost in the diff overlay
 
 
 def render():
-    """Regenerate docs/sample.png and docs/diff.png from dist/ + DEJAVU_DIR."""
+    """Regenerate assets/sample.png and assets/diff.png from dist/ + DEJAVU_DIR."""
     from PIL import Image, ImageDraw, ImageFont
     dist = os.path.join(ROOT, "dist")
-    docs = os.path.join(ROOT, "docs")
-    os.makedirs(docs, exist_ok=True)
+    assets = os.path.join(ROOT, "assets")
+    os.makedirs(assets, exist_ok=True)
     if not os.path.exists(os.path.join(dist, "AstacidMono-Regular.ttf")):
         sys.exit("no dist/ — run `python3 build.py` first.")
 
@@ -230,8 +230,8 @@ def render():
             d.text((pad, y), ln, font=f, fill=FG, anchor="la")
             y += lead
         y += gap
-    img.save(os.path.join(docs, "sample.png"))
-    print("  docs/sample.png")
+    img.save(os.path.join(assets, "sample.png"))
+    print("  assets/sample.png")
 
     # ── diff.png: the 16 changed glyphs, DejaVu ghosted under Astacid ──
     gsz, cols = 128, 8
@@ -250,8 +250,8 @@ def render():
         ch_ = chr(cp)
         d.text((cx, base), ch_, font=dv, fill=ACCENT + (200,), anchor="ms")
         d.text((cx, base), ch_, font=ast, fill=FG + (255,), anchor="ms")
-    img.convert("RGB").save(os.path.join(docs, "diff.png"))
-    print("  docs/diff.png")
+    img.convert("RGB").save(os.path.join(assets, "diff.png"))
+    print("  assets/diff.png")
 
 
 def main():
