@@ -1,2 +1,6 @@
 *.ttf
 !AstacidMono.ttf
+
+# generated build artifacts
+/build/
+/dist/
