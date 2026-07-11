@@ -22,11 +22,12 @@ A DejaVu-based monospace font for programming. DejaVu Sans Mono with hand-tuned 
 Fully reproducible builds via Nix:
 
 ```sh
-nix build                  # -> result/share/fonts/truetype/*.ttf
 nix develop                # enter dev shell
-ruff format && ruff check  # format & lint Python code
-python build.py            # -> dist/
-python build.py render     # regenerate the assets/ previews
+ruff format && ruff check  # format & lint
+python -m pytest tests/    # run tests
+python build.py            # generate .TTFs in dist/
+python build.py render     # generate .PNGs in assets/
+nix build                  # generate result/share/fonts/truetype/*.ttf
 ```
 
 Prebuilt faces are committed in [`dist/`](dist) — `nix build` reproduces them byte-for-byte. Glyph sources are editable UFO under [`sources/`](sources); the merge, Nerd patch, and metadata all live in a single [`build.py`](build.py).

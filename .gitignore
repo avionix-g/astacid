@@ -4,3 +4,4 @@
 # generated build artifacts (dist/ is the committed, reproducible deliverable)
 /build/
 /result
+__pycache__

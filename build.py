@@ -6,7 +6,7 @@
 
 The font build patches override glyphs onto pristine DejaVu Sans Mono faces,
 adds the Nerd Font glyph set, and writes an authoritative name table. It is
-bit-for-bit reproducible given a fixed base and SOURCE_DATE_EPOCH.
+bit-for-bit reproducible.
 
 Process:
 1. Merge the UFO override outlines onto the base faces with fonttools.
@@ -16,23 +16,42 @@ Process:
 Engine imports are lazy so a plain `render` run only needs Pillow.
 
 Environment:
-    DEJAVU_DIR         dir holding the 4 pristine DejaVu Sans Mono TTFs
-    SOURCE_DATE_EPOCH  deterministic timestamp (default 1980-01-01)
+    DEJAVU_DIR   dir holding the 4 pristine DejaVu Sans Mono TTFs
 """
 
 import os
+import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
+from enum import IntFlag
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
-# ── identity ────────────────────────────────────────────────────────────────
+# --- identity ---
 FAMILY = "Astacid Mono"
 VENDOR = "AVNX"
 VERSION = "2.000"
-REVISION = 2.0
+REVISION = float(VERSION)
 CELL = 1233  # monospace advance width at 2048 UPM
-MAC_EPOCH_OFFSET = 2082844800  # 1970-01-01 -> 1904-01-01
+EPOCH = 1786419187  # canonical build timestamp (head.created/modified)
+
+
+class FsSelection(IntFlag):
+    """OS/2 fsSelection bits we set."""
+
+    ITALIC = 1 << 0
+    BOLD = 1 << 5
+    REGULAR = 1 << 6
+    USE_TYPO_METRICS = 1 << 7
+
+
+class MacStyle(IntFlag):
+    """head macStyle bits."""
+
+    BOLD = 1 << 0
+    ITALIC = 1 << 1
+
 
 COPYRIGHT = (
     "Astacid Mono (c) 2022-2026 avionix. A derivative of DejaVu Sans "
@@ -49,42 +68,38 @@ LICENSE = (
 )
 LICENSE_URL = "https://dejavu-fonts.github.io/License.html"
 
-# style -> (base TTF, override UFO, RIBBI subfamily, typographic subfamily, bold, italic)
+
+@dataclass(frozen=True)
+class Face:
+    base_ttf: str  # pristine DejaVu source
+    override_ufo: str  # glyph override source
+    subfamily: str  # RIBBI subfamily (name ID 2): Italic, not Oblique
+    typographic: str  # typographic subfamily (name ID 17): Oblique
+
+    @property
+    def bold(self):
+        return "Bold" in self.subfamily
+
+    @property
+    def italic(self):
+        return "Italic" in self.subfamily
+
+
 FACES = {
-    "Regular": (
-        "DejaVuSansMono.ttf",
-        "overrides.ufo",
-        "Regular",
-        "Regular",
-        False,
-        False,
+    "Regular": Face("DejaVuSansMono.ttf", "overrides.ufo", "Regular", "Regular"),
+    "Bold": Face("DejaVuSansMono-Bold.ttf", "overrides-bold.ufo", "Bold", "Bold"),
+    "Oblique": Face(
+        "DejaVuSansMono-Oblique.ttf", "overrides-oblique.ufo", "Italic", "Oblique"
     ),
-    "Bold": (
-        "DejaVuSansMono-Bold.ttf",
-        "overrides-bold.ufo",
-        "Bold",
-        "Bold",
-        True,
-        False,
-    ),
-    "Oblique": (
-        "DejaVuSansMono-Oblique.ttf",
-        "overrides-oblique.ufo",
-        "Italic",
-        "Oblique",
-        False,
-        True,
-    ),
-    "BoldOblique": (
+    "BoldOblique": Face(
         "DejaVuSansMono-BoldOblique.ttf",
         "overrides-boldoblique.ufo",
         "Bold Italic",
         "Bold Oblique",
-        True,
-        True,
     ),
 }
 STYLES = list(FACES)
+
 
 # codepoints that differ from stock DejaVu (used only by `render`)
 CHANGED = [
@@ -107,7 +122,7 @@ CHANGED = [
 ]
 
 
-# ── stage 1: merge overrides onto base (fonttools + ufoLib2) ─────────────────
+# --- stage 1: merge overrides onto base (fonttools + ufoLib2) ---
 def merge(rawdir):
     """Transplant each UFO override glyph's outline onto its base face.
 
@@ -122,15 +137,15 @@ def merge(rawdir):
 
     dejavu = os.environ["DEJAVU_DIR"]
     os.makedirs(rawdir, exist_ok=True)
-    for style, (base_ttf, ov_ufo, *_) in FACES.items():
-        base = TTFont(os.path.join(dejavu, base_ttf))
+    for style, face in FACES.items():
+        base = TTFont(os.path.join(dejavu, face.base_ttf))
         cmap, glyf, hmtx = base.getBestCmap(), base["glyf"], base["hmtx"]
-        ufo = UFO.open(os.path.join(ROOT, "sources", ov_ufo))
+        ufo = UFO.open(os.path.join(ROOT, "sources", face.override_ufo))
         for g in ufo:
             cp = g.unicode
             if cp is None or cp not in cmap:
                 raise SystemExit(
-                    "override U+%04X has no base glyph in %s" % (cp or 0, base_ttf)
+                    f"override U+{cp or 0:04X} has no base glyph in {face.base_ttf}"
                 )
             name = cmap[cp]
             pen = TTGlyphPen(None)
@@ -139,12 +154,12 @@ def merge(rawdir):
             tg.recalcBounds(glyf)
             glyf[name] = tg
             hmtx[name] = (CELL, tg.xMin)
-        base.save(os.path.join(rawdir, "AstacidMono-%s.ttf" % style))
+        base.save(os.path.join(rawdir, f"AstacidMono-{style}.ttf"))
         base.close()
         print("  merged", style)
 
 
-# ── stage 2: Nerd Font glyphs ────────────────────────────────────────────────
+# --- stage 2: Nerd Font glyphs ---
 def patch_nerd(rawdir, outdir):
     os.makedirs(outdir, exist_ok=True)
     for style in STYLES:
@@ -159,29 +174,30 @@ def patch_nerd(rawdir, outdir):
                 "--no-progressbars",
                 "--outputdir",
                 tmp,
-                os.path.join(rawdir, "AstacidMono-%s.ttf" % style),
+                os.path.join(rawdir, f"AstacidMono-{style}.ttf"),
             ],
             check=True,
         )
         (produced,) = [f for f in os.listdir(tmp) if f.endswith(".ttf")]
         os.replace(
             os.path.join(tmp, produced),
-            os.path.join(outdir, "AstacidMono-%s.ttf" % style),
+            os.path.join(outdir, f"AstacidMono-{style}.ttf"),
         )
         os.rmdir(tmp)
         print("  patched", style)
 
 
-# ── stage 3: authoritative metadata (fonttools) ──────────────────────────────
+# --- stage 3: authoritative metadata (fonttools) ---
 def apply_metadata(infile, outfile, style):
     """Runs last so it overrides the Nerd patcher's renaming."""
+    from fontTools.misc.timeTools import epoch_diff
     from fontTools.ttLib import TTFont
 
-    _, _, sub, typo, bold, ital = FACES[style]
-    full = FAMILY if style == "Regular" else "%s %s" % (FAMILY, typo)
-    ps = "AstacidMono-%s" % style
+    face = FACES[style]
+    full = FAMILY if style == "Regular" else f"{FAMILY} {face.typographic}"
+    ps = f"AstacidMono-{style}"
 
-    f = TTFont(infile)
+    f = TTFont(infile, recalcTimestamp=False)  # keep our explicit head.modified
     name = f["name"]
     for nid in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 14, 16, 17):
         name.removeNames(nameID=nid)
@@ -192,10 +208,10 @@ def apply_metadata(infile, outfile, style):
 
     setname(0, COPYRIGHT)
     setname(1, FAMILY)  # RIBBI family (exactly 4 styles)
-    setname(2, sub)  # RIBBI subfamily
-    setname(3, "%s;%s;%s" % (VERSION, VENDOR, ps))
+    setname(2, face.subfamily)  # RIBBI subfamily
+    setname(3, f"{VERSION};{VENDOR};{ps}")
     setname(4, full)
-    setname(5, "Version %s" % VERSION)
+    setname(5, f"Version {VERSION}")
     setname(6, ps)
     setname(8, "avionix")
     setname(9, "avionix; DejaVu fonts team; Bitstream, Inc.")
@@ -203,41 +219,42 @@ def apply_metadata(infile, outfile, style):
     setname(13, LICENSE)
     setname(14, LICENSE_URL)
     setname(16, FAMILY)  # typographic family
-    setname(17, typo)  # typographic subfamily (Oblique, not Italic)
+    setname(17, face.typographic)  # typographic subfamily (Oblique, not Italic)
 
     os2 = f["OS/2"]
     os2.achVendID = VENDOR
-    fs = os2.fsSelection & ~0b11100001  # clear ITALIC, BOLD, REGULAR
-    fs &= ~(1 << 7)  # clear USE_TYPO_METRICS
-    if ital:
-        fs |= 1 << 0
-    if bold:
-        fs |= 1 << 5
-    if not bold and not ital:
-        fs |= 1 << 6
-    fs |= 1 << 7  # always USE_TYPO_METRICS
+    fs = os2.fsSelection & ~FsSelection(
+        FsSelection.ITALIC | FsSelection.BOLD | FsSelection.REGULAR
+    )
+    fs |= FsSelection.USE_TYPO_METRICS  # always
+    if face.italic:
+        fs |= FsSelection.ITALIC
+    if face.bold:
+        fs |= FsSelection.BOLD
+    if not face.bold and not face.italic:
+        fs |= FsSelection.REGULAR
     os2.fsSelection = fs
 
     head = f["head"]
     head.fontRevision = REVISION
-    head.macStyle = (0b01 if bold else 0) | (0b10 if ital else 0)
-    epoch = int(os.environ.get("SOURCE_DATE_EPOCH", "315532800")) + MAC_EPOCH_OFFSET
-    head.created = head.modified = epoch
+    head.macStyle = (MacStyle.BOLD if face.bold else 0) | (
+        MacStyle.ITALIC if face.italic else 0
+    )
+    head.created = head.modified = EPOCH - epoch_diff
 
     f.save(outfile)
     print("  meta", style)
 
 
-# ── orchestration ────────────────────────────────────────────────────────────
+# --- orchestration ---
 def build():
     if "DEJAVU_DIR" not in os.environ:
-        sys.exit("DEJAVU_DIR unset — enter the flake devShell or `nix build`.")
-    os.environ.setdefault("SOURCE_DATE_EPOCH", "315532800")
+        sys.exit("DEJAVU_DIR unset -- enter the flake devShell or `nix build`.")
     raw = os.path.join(ROOT, "build", "raw")
     patched = os.path.join(ROOT, "build", "patched")
     dist = os.path.join(ROOT, "dist")
     for d in (os.path.join(ROOT, "build"), dist):
-        subprocess.run(["rm", "-rf", d], check=True)
+        shutil.rmtree(d, ignore_errors=True)
     os.makedirs(dist)
 
     print(">> stage 1: merge overrides onto base")
@@ -247,14 +264,14 @@ def build():
     print(">> stage 3: authoritative metadata")
     for style in STYLES:
         apply_metadata(
-            os.path.join(patched, "AstacidMono-%s.ttf" % style),
-            os.path.join(dist, "AstacidMono-%s.ttf" % style),
+            os.path.join(patched, f"AstacidMono-{style}.ttf"),
+            os.path.join(dist, f"AstacidMono-{style}.ttf"),
             style,
         )
     print(">> done ->", dist)
 
 
-# ── preview images (Pillow; dev-time, not part of the reproducible build) ────
+# --- preview images (Pillow; dev-time, not part of the reproducible build) ---
 SAMPLE = (
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
     "abcdefghijklmnopqrstuvwxyz\n"
@@ -276,19 +293,20 @@ def render():
     assets = os.path.join(ROOT, "assets")
     os.makedirs(assets, exist_ok=True)
     if not os.path.exists(os.path.join(dist, "AstacidMono-Regular.ttf")):
-        sys.exit("no dist/ — run `python3 build.py` first.")
+        sys.exit("no dist/ -- run `python3 build.py` first.")
 
     def face(style, size):
-        return ImageFont.truetype(
-            os.path.join(dist, "AstacidMono-%s.ttf" % style), size
-        )
+        return ImageFont.truetype(os.path.join(dist, f"AstacidMono-{style}.ttf"), size)
 
-    # ── sample.png: the four styles over the sample text ──
+    # --- sample.png: the four styles over the sample text ---
     sz, pad, lead, gap = 34, 44, 46, 34
     lines = SAMPLE.splitlines()
     label = ImageFont.truetype(os.path.join(dist, "AstacidMono-Bold.ttf"), 20)
     blocks = [
-        (FAMILY if st == "Regular" else "%s %s" % (FAMILY, FACES[st][3]), face(st, sz))
+        (
+            FAMILY if st == "Regular" else f"{FAMILY} {FACES[st].typographic}",
+            face(st, sz),
+        )
         for st in STYLES
     ]
     scratch = ImageDraw.Draw(Image.new("RGB", (1, 1)))
@@ -307,7 +325,7 @@ def render():
     img.save(os.path.join(assets, "sample.png"))
     print("  assets/sample.png")
 
-    # ── diff.png: the 16 changed glyphs, DejaVu ghosted under Astacid ──
+    # --- diff.png: the 16 changed glyphs, DejaVu ghosted under Astacid ---
     gsz, cols = 128, 8
     cw, ch = 128, 172
     rows = (len(CHANGED) + cols - 1) // cols
@@ -319,7 +337,7 @@ def render():
     d = ImageDraw.Draw(img)
     d.text(
         (cw * cols // 2, 20),
-        "changed glyphs — DejaVu (pink) vs Astacid",
+        "changed glyphs -- DejaVu (pink) vs Astacid",
         font=label,
         fill=DIM,
         anchor="mm",

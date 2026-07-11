@@ -21,6 +21,7 @@
               ps.ufolib2              # read the UFO override glyph sources
               ps.brotli               # WOFF2 support for fonttools
               ps.pillow               # `build.py render` preview images (dev only)
+              ps.pytest               # test suite (tests/)
             ]))
           ];
 
@@ -34,7 +35,6 @@
             echo "  fonttools         $(python3 -c 'import fontTools; print(fontTools.version)')"
             echo "  ruff              $(ruff --version)"
             echo "  dejavu base       ${pkgs.dejavu_fonts.version}  ($DEJAVU_DIR)"
-            export SOURCE_DATE_EPOCH=315532800   # deterministic font timestamps (1980-01-01)
           '';
         };
       });
@@ -49,7 +49,6 @@
             (pkgs.python3.withPackages (ps: [ ps.fonttools ps.ufolib2 ps.brotli ]))
           ];
           DEJAVU_DIR = "${pkgs.dejavu_fonts}/share/fonts/truetype";
-          SOURCE_DATE_EPOCH = 315532800;
           buildPhase = "python3 build.py";
           installPhase = "install -Dm644 dist/*.ttf -t $out/share/fonts/truetype";
         };
