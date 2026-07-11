@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 """Astacid Mono build pipeline
 
-    python3 build.py            # build all four faces into dist/
-    python3 build.py render     # regenerate assets/ preview images
+    python3 build.py     # build all four faces into dist/
 
-The font build patches override glyphs onto pristine DejaVu Sans Mono faces,
-adds the Nerd Font glyph set, and writes an authoritative name table. It is
-bit-for-bit reproducible.
+Patches override glyphs onto pristine DejaVu Sans Mono faces, adds the Nerd
+Font glyph set, and writes an authoritative name table. Bit-for-bit
+reproducible. README preview images live in render.py.
 
 Process:
 1. Merge the UFO override outlines onto the base faces with fonttools.
 2. Add Nerd Font glyphs via the external `nerd-font-patcher`.
 3. Rewrite the name/OS-2/head tables with fonttools.
-
-Engine imports are lazy so a plain `render` run only needs Pillow.
 
 Environment:
     DEJAVU_DIR   dir holding the 4 pristine DejaVu Sans Mono TTFs
@@ -25,16 +22,34 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from enum import IntFlag
+from pathlib import Path
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+# --- layout ---
+ROOT = Path(__file__).resolve().parent
+SOURCES = ROOT / "sources"
+ASSETS = ROOT / "assets"
+DIST = ROOT / "dist"
+BUILD = ROOT / "build"
+RAW = BUILD / "raw"
+PATCHED = BUILD / "patched"
 
 # --- identity ---
 FAMILY = "Astacid Mono"
+STEM = FAMILY.replace(" ", "")  # filename / PostScript prefix
 VENDOR = "AVNX"
-VERSION = "2.000"
-REVISION = float(VERSION)
+# Versioning is major.minor only; semver is pointless for a font. The canonical
+# string lives in the VERSION file so build.py and flake.nix can't drift.
+MAJOR, MINOR = (int(n) for n in (ROOT / "VERSION").read_text().strip().split("."))
+VERSION = f"{MAJOR}.{MINOR:03d}"  # name-table string, e.g. "2.000"
+REVISION = MAJOR + MINOR / 1000  # head.fontRevision (16.16 fixed)
 CELL = 1233  # monospace advance width at 2048 UPM
-EPOCH = 1786419187  # canonical build timestamp (head.created/modified)
+# Fixed so builds are bit-reproducible. The value is the repo's initial commit
+# (2022-07-09); the exact instant is arbitrary — only its constancy matters.
+EPOCH = 1657375334
+
+
+def face_filename(style):
+    return f"{STEM}-{style}.ttf"
 
 
 class FsSelection(IntFlag):
@@ -101,25 +116,11 @@ FACES = {
 STYLES = list(FACES)
 
 
-# codepoints that differ from stock DejaVu (used only by `render`)
-CHANGED = [
-    0x24,
-    0x25,
-    0x28,
-    0x29,
-    0x2A,
-    0x2D,
-    0x30,
-    0x5E,
-    0x5F,
-    0x69,
-    0x6C,
-    0x7B,
-    0x7D,
-    0x7E,
-    0xA1,
-    0xBF,
-]
+def dejavu_dir():
+    d = os.environ.get("DEJAVU_DIR")
+    if not d:
+        sys.exit("DEJAVU_DIR unset -- enter the flake devShell or `nix build`.")
+    return Path(d)
 
 
 # --- stage 1: merge overrides onto base (fonttools + ufoLib2) ---
@@ -135,12 +136,12 @@ def merge(rawdir):
     from fontTools.pens.ttGlyphPen import TTGlyphPen
     from ufoLib2 import Font as UFO
 
-    dejavu = os.environ["DEJAVU_DIR"]
-    os.makedirs(rawdir, exist_ok=True)
+    dejavu = dejavu_dir()
+    rawdir.mkdir(parents=True, exist_ok=True)
     for style, face in FACES.items():
-        base = TTFont(os.path.join(dejavu, face.base_ttf))
+        base = TTFont(dejavu / face.base_ttf)
         cmap, glyf, hmtx = base.getBestCmap(), base["glyf"], base["hmtx"]
-        ufo = UFO.open(os.path.join(ROOT, "sources", face.override_ufo))
+        ufo = UFO.open(SOURCES / face.override_ufo)
         for g in ufo:
             cp = g.unicode
             if cp is None or cp not in cmap:
@@ -154,17 +155,17 @@ def merge(rawdir):
             tg.recalcBounds(glyf)
             glyf[name] = tg
             hmtx[name] = (CELL, tg.xMin)
-        base.save(os.path.join(rawdir, f"AstacidMono-{style}.ttf"))
+        base.save(str(rawdir / face_filename(style)))
         base.close()
         print("  merged", style)
 
 
 # --- stage 2: Nerd Font glyphs ---
 def patch_nerd(rawdir, outdir):
-    os.makedirs(outdir, exist_ok=True)
+    outdir.mkdir(parents=True, exist_ok=True)
     for style in STYLES:
-        tmp = os.path.join(outdir, style + ".d")
-        os.makedirs(tmp, exist_ok=True)
+        tmp = outdir / f"{style}.d"
+        tmp.mkdir(exist_ok=True)
         subprocess.run(
             [
                 "nerd-font-patcher",
@@ -173,17 +174,16 @@ def patch_nerd(rawdir, outdir):
                 "--quiet",
                 "--no-progressbars",
                 "--outputdir",
-                tmp,
-                os.path.join(rawdir, f"AstacidMono-{style}.ttf"),
+                str(tmp),
+                str(rawdir / face_filename(style)),
             ],
             check=True,
         )
-        (produced,) = [f for f in os.listdir(tmp) if f.endswith(".ttf")]
-        os.replace(
-            os.path.join(tmp, produced),
-            os.path.join(outdir, f"AstacidMono-{style}.ttf"),
-        )
-        os.rmdir(tmp)
+        produced = list(tmp.glob("*.ttf"))
+        if len(produced) != 1:
+            sys.exit(f"expected 1 patched TTF for {style}, got {len(produced)}")
+        produced[0].replace(outdir / face_filename(style))
+        tmp.rmdir()
         print("  patched", style)
 
 
@@ -195,9 +195,9 @@ def apply_metadata(infile, outfile, style):
 
     face = FACES[style]
     full = FAMILY if style == "Regular" else f"{FAMILY} {face.typographic}"
-    ps = f"AstacidMono-{style}"
+    ps = f"{STEM}-{style}"
 
-    f = TTFont(infile, recalcTimestamp=False)  # keep our explicit head.modified
+    f = TTFont(str(infile), recalcTimestamp=False)  # keep our explicit head.modified
     name = f["name"]
     for nid in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 14, 16, 17):
         name.removeNames(nameID=nid)
@@ -242,125 +242,30 @@ def apply_metadata(infile, outfile, style):
     )
     head.created = head.modified = EPOCH - epoch_diff
 
-    f.save(outfile)
+    f.save(str(outfile))
     print("  meta", style)
 
 
 # --- orchestration ---
 def build():
-    if "DEJAVU_DIR" not in os.environ:
-        sys.exit("DEJAVU_DIR unset -- enter the flake devShell or `nix build`.")
-    raw = os.path.join(ROOT, "build", "raw")
-    patched = os.path.join(ROOT, "build", "patched")
-    dist = os.path.join(ROOT, "dist")
-    for d in (os.path.join(ROOT, "build"), dist):
+    dejavu_dir()  # fail early if unset
+    for d in (BUILD, DIST):
         shutil.rmtree(d, ignore_errors=True)
-    os.makedirs(dist)
+    DIST.mkdir()
 
     print(">> stage 1: merge overrides onto base")
-    merge(raw)
+    merge(RAW)
     print(">> stage 2: patch Nerd Font glyphs (--complete --mono)")
-    patch_nerd(raw, patched)
+    patch_nerd(RAW, PATCHED)
     print(">> stage 3: authoritative metadata")
     for style in STYLES:
         apply_metadata(
-            os.path.join(patched, f"AstacidMono-{style}.ttf"),
-            os.path.join(dist, f"AstacidMono-{style}.ttf"),
+            PATCHED / face_filename(style),
+            DIST / face_filename(style),
             style,
         )
-    print(">> done ->", dist)
-
-
-# --- preview images (Pillow; dev-time, not part of the reproducible build) ---
-SAMPLE = (
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
-    "abcdefghijklmnopqrstuvwxyz\n"
-    "0123456789 ~!@#$%^&?+*-=,;.:\n"
-    "() [] {} \"\" '' \\/ <> -- __"
-)
-
-BG = (30, 30, 46)  # card background (reads on light + dark READMEs)
-FG = (205, 214, 244)  # primary text
-DIM = (127, 132, 156)  # labels
-ACCENT = (243, 139, 168)  # DejaVu ghost in the diff overlay
-
-
-def render():
-    """Regenerate assets/sample.png and assets/diff.png from dist/ + DEJAVU_DIR."""
-    from PIL import Image, ImageDraw, ImageFont
-
-    dist = os.path.join(ROOT, "dist")
-    assets = os.path.join(ROOT, "assets")
-    os.makedirs(assets, exist_ok=True)
-    if not os.path.exists(os.path.join(dist, "AstacidMono-Regular.ttf")):
-        sys.exit("no dist/ -- run `python3 build.py` first.")
-
-    def face(style, size):
-        return ImageFont.truetype(os.path.join(dist, f"AstacidMono-{style}.ttf"), size)
-
-    # --- sample.png: the four styles over the sample text ---
-    sz, pad, lead, gap = 34, 44, 46, 34
-    lines = SAMPLE.splitlines()
-    label = ImageFont.truetype(os.path.join(dist, "AstacidMono-Bold.ttf"), 20)
-    blocks = [
-        (
-            FAMILY if st == "Regular" else f"{FAMILY} {FACES[st].typographic}",
-            face(st, sz),
-        )
-        for st in STYLES
-    ]
-    scratch = ImageDraw.Draw(Image.new("RGB", (1, 1)))
-    width = max(scratch.textlength(ln, font=f) for _, f in blocks for ln in lines)
-    height = pad + len(blocks) * (28 + len(lines) * lead + gap)
-    img = Image.new("RGB", (int(width) + 2 * pad, int(height)), BG)
-    d = ImageDraw.Draw(img)
-    y = pad
-    for title, f in blocks:
-        d.text((pad, y), title, font=label, fill=DIM, anchor="la")
-        y += 28
-        for ln in lines:
-            d.text((pad, y), ln, font=f, fill=FG, anchor="la")
-            y += lead
-        y += gap
-    img.save(os.path.join(assets, "sample.png"))
-    print("  assets/sample.png")
-
-    # --- diff.png: the 16 changed glyphs, DejaVu ghosted under Astacid ---
-    gsz, cols = 128, 8
-    cw, ch = 128, 172
-    rows = (len(CHANGED) + cols - 1) // cols
-    dv = ImageFont.truetype(
-        os.path.join(os.environ["DEJAVU_DIR"], "DejaVuSansMono.ttf"), gsz
-    )
-    ast = face("Regular", gsz)
-    img = Image.new("RGBA", (cols * cw, rows * ch + 40), BG + (255,))
-    d = ImageDraw.Draw(img)
-    d.text(
-        (cw * cols // 2, 20),
-        "changed glyphs -- DejaVu (pink) vs Astacid",
-        font=label,
-        fill=DIM,
-        anchor="mm",
-    )
-    for i, cp in enumerate(CHANGED):
-        cx = (i % cols) * cw + cw // 2
-        base = 40 + (i // cols) * ch + int(ch * 0.62)
-        ch_ = chr(cp)
-        d.text((cx, base), ch_, font=dv, fill=ACCENT + (200,), anchor="ms")
-        d.text((cx, base), ch_, font=ast, fill=FG + (255,), anchor="ms")
-    img.convert("RGB").save(os.path.join(assets, "diff.png"))
-    print("  assets/diff.png")
-
-
-def main():
-    arg = sys.argv[1] if len(sys.argv) > 1 else "build"
-    if arg == "build":
-        build()
-    elif arg == "render":
-        render()
-    else:
-        sys.exit(__doc__)
+    print(">> done ->", DIST)
 
 
 if __name__ == "__main__":
-    main()
+    build()

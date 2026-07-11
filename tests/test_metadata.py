@@ -1,9 +1,11 @@
 import pytest
 from fontTools.misc.timeTools import epoch_diff
 
-STYLES = ["Regular", "Bold", "Oblique", "BoldOblique"]
+from build import STYLES
 
-# fsSelection / macStyle bit positions
+# fsSelection / macStyle bit positions. Restated (not imported from build) on
+# purpose: the test's job is to independently assert the expected bits, so a
+# typo in build.py can't silently propagate into a passing test.
 ITALIC, BOLD, REGULAR, USE_TYPO = 1 << 0, 1 << 5, 1 << 6, 1 << 7
 MAC_BOLD, MAC_ITALIC = 1 << 0, 1 << 1
 

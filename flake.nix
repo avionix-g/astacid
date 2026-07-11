@@ -7,6 +7,7 @@
     let
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
+      version = nixpkgs.lib.fileContents ./VERSION;  # single source, shared with build.py
     in
     {
       devShells = forAllSystems (pkgs: {
@@ -29,12 +30,10 @@
           DEJAVU_DIR = "${pkgs.dejavu_fonts}/share/fonts/truetype";
 
           shellHook = ''
-            echo "Astacid dev shell:"
-            echo "  fontforge         $(fontforge --version 2>&1 | grep -oiE 'fontforge [0-9]+' | head -1)"
-            echo "  nerd-font-patcher $(nerd-font-patcher --version 2>/dev/null | head -1)"
-            echo "  fonttools         $(python3 -c 'import fontTools; print(fontTools.version)')"
-            echo "  ruff              $(ruff --version)"
-            echo "  dejavu base       ${pkgs.dejavu_fonts.version}  ($DEJAVU_DIR)"
+            echo "Astacid dev shell (v${version}):"
+            echo "  fonttools    $(python3 -c 'import fontTools; print(fontTools.version)')"
+            echo "  ruff         $(ruff --version)"
+            echo "  dejavu base  ${pkgs.dejavu_fonts.version}  ($DEJAVU_DIR)"
           '';
         };
       });
@@ -42,7 +41,7 @@
       packages = forAllSystems (pkgs: {
         default = pkgs.stdenv.mkDerivation {
           pname = "astacid-mono";
-          version = "2.0.0";
+          inherit version;
           src = self;
           nativeBuildInputs = [
             pkgs.nerd-font-patcher

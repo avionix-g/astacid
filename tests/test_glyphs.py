@@ -6,7 +6,7 @@ from fontTools.pens.recordingPen import RecordingPen
 from fontTools.ttLib import TTFont
 from ufoLib2 import Font as UFO
 
-STYLES = ["Regular", "Bold", "Oblique", "BoldOblique"]
+from build import STYLES
 
 
 def glyph_hash(font, codepoint):
@@ -19,10 +19,12 @@ def glyph_hash(font, codepoint):
 
 
 def test_changed_matches_override_sources(build_module):
-    """CHANGED (used by render) stays in sync with the actual override glyphs."""
-    ufo = UFO.open(os.path.join(build_module.ROOT, "sources", "overrides.ufo"))
+    """render.CHANGED stays in sync with the actual override glyphs."""
+    import render
+
+    ufo = UFO.open(build_module.SOURCES / "overrides.ufo")
     cps = {g.unicode for g in ufo if g.unicode is not None}
-    assert cps == set(build_module.CHANGED)
+    assert cps == set(render.CHANGED)
 
 
 @pytest.mark.parametrize("style", STYLES)

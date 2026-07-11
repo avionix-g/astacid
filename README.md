@@ -25,8 +25,8 @@ Fully reproducible builds via Nix:
 nix develop                # enter dev shell
 ruff format && ruff check  # format & lint
 python -m pytest tests/    # run tests
-python build.py            # generate .TTFs in dist/
-python build.py render     # generate .PNGs in assets/
+python build.py            # regenerate .TTFs in dist/
+python render.py           # regenerate .PNGs in assets/
 nix build                  # generate result/share/fonts/truetype/*.ttf
 ```
 
