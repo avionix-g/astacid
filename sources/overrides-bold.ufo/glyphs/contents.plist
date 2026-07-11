@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>dollar</key>
+    <string>dollar.glif</string>
+    <key>percent</key>
+    <string>percent.glif</string>
+    <key>parenleft</key>
+    <string>parenleft.glif</string>
+    <key>parenright</key>
+    <string>parenright.glif</string>
+    <key>asterisk</key>
+    <string>asterisk.glif</string>
+    <key>hyphen</key>
+    <string>hyphen.glif</string>
+    <key>zero</key>
+    <string>zero.glif</string>
+    <key>asciicircum</key>
+    <string>asciicircum.glif</string>
+    <key>underscore</key>
+    <string>underscore.glif</string>
+    <key>i</key>
+    <string>i.glif</string>
+    <key>l</key>
+    <string>l.glif</string>
+    <key>braceleft</key>
+    <string>braceleft.glif</string>
+    <key>braceright</key>
+    <string>braceright.glif</string>
+    <key>asciitilde</key>
+    <string>asciitilde.glif</string>
+    <key>exclamdown</key>
+    <string>exclamdown.glif</string>
+    <key>questiondown</key>
+    <string>questiondown.glif</string>
+  </dict>
+</plist>

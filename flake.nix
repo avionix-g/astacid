@@ -20,8 +20,10 @@
             # revisit then (bump pin, add a second good-rev input, or run via `uvx fontbakery`).
             pkgs.woff2                # woff2_compress for optional web artifact
             (pkgs.python3.withPackages (ps: [
-              ps.fonttools            # ttx, subsetting, name-table surgery
+              ps.fonttools            # merge + name-table surgery
+              ps.ufolib2              # read the UFO override glyph sources
               ps.brotli               # WOFF2 support for fonttools
+              ps.pillow               # `build.py render` preview images (dev only)
             ]))
           ];
 
@@ -48,13 +50,12 @@
           version = "2.0.0";
           src = self;
           nativeBuildInputs = [
-            pkgs.fontforge
             pkgs.nerd-font-patcher
-            (pkgs.python3.withPackages (ps: [ ps.fonttools ps.brotli ]))
+            (pkgs.python3.withPackages (ps: [ ps.fonttools ps.ufolib2 ps.brotli ]))
           ];
           DEJAVU_DIR = "${pkgs.dejavu_fonts}/share/fonts/truetype";
           SOURCE_DATE_EPOCH = 315532800;
-          buildPhase = "bash build.sh";
+          buildPhase = "python3 build.py";
           installPhase = "install -Dm644 dist/*.ttf -t $out/share/fonts/truetype";
         };
       });

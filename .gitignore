@@ -4,3 +4,4 @@
 # generated build artifacts
 /build/
 /dist/
+/result
