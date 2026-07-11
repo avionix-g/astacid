@@ -42,21 +42,21 @@
         };
       });
 
-      # Phase 4: uncomment once build.sh + sources/overrides.sfd + vendored base exist.
-      # packages = forAllSystems (pkgs: {
-      #   default = pkgs.stdenv.mkDerivation {
-      #     pname = "astacid-mono";
-      #     version = "2.0.0";
-      #     src = self;
-      #     nativeBuildInputs = [ pkgs.fontforge pkgs.nerd-font-patcher
-      #       (pkgs.python3.withPackages (ps: [ ps.fonttools ps.brotli ])) ];
-      #     DEJAVU_DIR = "${pkgs.dejavu_fonts}/share/fonts/truetype";
-      #     SOURCE_DATE_EPOCH = 315532800;
-      #     buildPhase = "bash build.sh";
-      #     installPhase = ''
-      #       install -Dm644 dist/*.ttf -t $out/share/fonts/truetype
-      #     '';
-      #   };
-      # });
+      packages = forAllSystems (pkgs: {
+        default = pkgs.stdenv.mkDerivation {
+          pname = "astacid-mono";
+          version = "2.0.0";
+          src = self;
+          nativeBuildInputs = [
+            pkgs.fontforge
+            pkgs.nerd-font-patcher
+            (pkgs.python3.withPackages (ps: [ ps.fonttools ps.brotli ]))
+          ];
+          DEJAVU_DIR = "${pkgs.dejavu_fonts}/share/fonts/truetype";
+          SOURCE_DATE_EPOCH = 315532800;
+          buildPhase = "bash build.sh";
+          installPhase = "install -Dm644 dist/*.ttf -t $out/share/fonts/truetype";
+        };
+      });
     };
 }
