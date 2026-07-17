@@ -19,7 +19,7 @@ CHANGED = [
 SAMPLE = (
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
     "abcdefghijklmnopqrstuvwxyz\n"
-    "0123456789 ~!@#$%^&?+*-=,;.:\n"
+    "0123456789~!@#$%^&?+*-=,;.:\n"
     "() [] {} \"\" '' \\/ <> -- __"
 )
 
