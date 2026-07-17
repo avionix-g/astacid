@@ -2,23 +2,21 @@
 <glyph name="l" format="2">
   <advance width="1233"/>
   <unicode hex="006C"/>
-  <anchor x="562" y="0" name="Anchor-8"/>
-  <anchor x="864.456" y="1556" name="Anchor-7"/>
-  <anchor x="888" y="0" name="Anchor-6"/>
+  <anchor x="854.153" y="1503" name="Anchor-6"/>
   <outline>
     <contour>
-      <point x="717.918" y="406" type="line" smooth="yes"/>
-      <point x="693.815" y="282"/>
-      <point x="760.323" y="156"/>
-      <point x="849.323" y="156" type="qcurve" smooth="yes"/>
-      <point x="1064.32" y="156" type="line"/>
-      <point x="1034" y="0" type="line"/>
-      <point x="801" y="0" type="line" smooth="yes"/>
-      <point x="636" y="0"/>
-      <point x="496.209" y="212"/>
-      <point x="533.918" y="406" type="qcurve" smooth="yes"/>
-      <point x="747.153" y="1503" type="line"/>
-      <point x="931.153" y="1503" type="line"/>
+      <point x="477.775" y="467" type="qcurve"/>
+      <point x="679.153" y="1503" type="line"/>
+      <point x="972.153" y="1503" type="line"/>
+      <point x="776.607" y="497" type="line" smooth="yes"/>
+      <point x="750.949" y="365"/>
+      <point x="811.567" y="255"/>
+      <point x="909.567" y="255" type="qcurve" smooth="yes"/>
+      <point x="1143.57" y="255" type="line"/>
+      <point x="1094" y="0" type="line"/>
+      <point x="778" y="0" type="line" smooth="yes"/>
+      <point x="569" y="0"/>
+      <point x="428.986" y="216"/>
     </contour>
   </outline>
 </glyph>
